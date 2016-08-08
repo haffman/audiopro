@@ -1,0 +1,212 @@
+
+
+How to create AudioBuffer/Audio from NSdata[如何创建从NSData audiobuffer /音频]
+http://www.4byte.cn/question/202104/how-to-create-audiobuffer-audio-from-nsdata.html
+
+
+iOS 音频采集 AudioBufferList转CMSampleBufferRef_IOS_第七城市
+http://www.th7.cn/Program/IOS/201603/779943.shtml
+
+
+ios - How to create AudioBuffer/Audio from NSdata - Stack Overflow
+http://stackoverflow.com/questions/21233706/how-to-create-audiobuffer-audio-from-nsdata
+
+
+The Amazing Audio Engine(iPhone源代码)源代码:TPCircularBuffer+AudioBufferList.h-好库网
+http://code1.okbase.net/codefile/TPCircularBuffer+AudioBufferList.h_2013110724852_18.htm
+http://www.okbase.net/file/item/24852
+
+
+CMSampleBuffer Reference
+https://developer.apple.com/library/mac/documentation/CoreMedia/Reference/CMSampleBuffer/
+
+
+http://www.cnblogs.com/LiLihongqiang/p/5626543.html
+iOS 音频开发 - 李洪强 - 博客园
+音频基础知识
+组成
+
+音频文件的组成：文件格式(或者音频容器) + 数据格式(或者音频编码)。
+文件格式(或音频容器)是用于形容文件本身的格式。
+
+我们可以通过多种不同的方法为真正的音频数据编码。例如CAF文件便是一种文件格式，它能够包含MP3格式，线性PCM以及其它数据格式的音频。
+数据格式(或音频编码)
+
+我们将从音频编码开始阐述(而不是文件格式)，因为编码是最重要的环节。
+线性PCM：
+
+这是表示线性脉冲编码调制，主要是描写用于将模拟声音数据转换成数字格式的技术。简单地说也就是未压缩的数据。因为数据是未压缩的，所以我们便可以最快速地播放出音频，而如果空间不是问题的话这便是iPhone音频的优先代码选择。
+音频文件计算大小
+
+声卡对声音的处理质量可以用三个基本参数来衡量，即采样频率、采样位数和声道数。
+采样频率:
+
+是指单位时间内的采样次数。采样频率越大，采样点之间的间隔就越小，数字化后得到的声音就越逼真，但相应的数据量就越大。声卡一般提供11.025kHz、22.05kHz和44.1kHz等不同的采样频率。
+采样位数：
+
+是记录每次采样值数值大小的位数。采样位数通常有8bits或16bits两种，采样位数越大，所能记录声音的变化度就越细腻，相应的数据量就越大。
+声道数
+
+是指处理的声音是单声道还是立体声。单声道在声音处理过程中只有单数据流，而立体声则需要左、右声道的两个数据流。显然，立体声的效果要好，但相应的数据量要比单声道的数据量加倍。
+声音数据量的计算公式为：
+
+数据量（字节/秒）= (采样频率（Hz）× 采样位数（bit） × 声道数)/ 8
+
+单声道的声道数为1，立体声的声道数为2。
+
+【例1】请计算对于5分钟双声道、16位采样位数、44.1kHz采样频率声音的不压缩数据量是多少？
+根据公式：数据量=（采样频率×采样位数×声道数×时间）/8
+得，数据量(MB)=[44.1×1000×16×2×（5×60）] /（8×1024×1024）=50.47MB
+计算时要注意几个单位的换算细节：
+时间单位换算：1分=60秒
+采样频率单位换算：1kHz=1000Hz
+数据量单位换算：1MB=1024×1024=1048576B
+
+【例2】请计算对于双声道立体声、采样频率为44.1kHz、采样位数为16位的激光唱盘（CD-A），用一个650MB的CD-ROM可存放多长时间的音乐？
+已知音频文件大小的计算公式如下：
+文件的字节数/每秒=采样频率（Hz）X采样位数（位）X声道数/8
+根据上面的公式计算一秒钟时间内的不压缩数据量：(44.1×1000×16×2)/8=0.168MB/s
+那么，一个650MB的CD-ROM可存放的时间为：（650/0.168）/（60×60）=1.07小时。
+iOS 音频转码
+
+音频转码使用的框架为：AudioToolBox
+内存转码：
+
+使用函数： AudioConverterFillComplexBuffer
+
+
+
+- (void)handleAudioPackets:(const void *)inputData
+             numberOfBytes:(UInt32)numberOfBytes
+           numberOfPackets:(UInt32)numberOfPackets
+        packetDescriptions:(AudioStreamPacketDescription *)packetDescriptions
+{
+    if (!_audioFileStream || !_parseAudioHeader || !_decodeConverterRef) return;
+
+    AudioConvertInfo convertInfo = (AudioConvertInfo){
+        .done = NO,
+        .numberOfPackets = numberOfPackets,
+        .packetDescriptions = packetDescriptions,
+        .audioBuffer = (AudioBuffer){
+            .mData = (void *)inputData,
+            .mDataByteSize = numberOfBytes,
+            .mNumberChannels = _sourceAsbd.mChannelsPerFrame
+        }
+    };
+
+    AudioBufferList decodedData;
+    decodedData.mNumberBuffers = 1;
+    decodedData.mBuffers[0].mNumberChannels = _canonicalAsbd.mChannelsPerFrame;
+    decodedData.mBuffers[0].mDataByteSize = _decodeBufferSize;
+    decodedData.mBuffers[0].mData = _decodeBuffer;
+
+    UInt32 ioOutputDataPackets1, ioOutputDataPackets2;
+    OSStatus decodingStatus, encodingStatus;
+
+    while (1)
+    {
+        ioOutputDataPackets1 = numberOfPackets;
+
+        decodingStatus = AudioConverterFillComplexBuffer(_decodeConverterRef, AudioConverterCallback, (void*)&convertInfo, &ioOutputDataPackets1, &decodedData, NULL);
+
+        if (decodingStatus == OS_STATUS_DONE || decodingStatus == 0)
+        {
+            if (ioOutputDataPackets1 > 0)
+            {
+                // Start encoding
+
+                AudioConvertInfo encodeConvertInfo = (AudioConvertInfo){
+                    .done = NO,
+                    .numberOfPackets = ioOutputDataPackets1,
+                    .packetDescriptions = NULL,
+                    .audioBuffer = (AudioBuffer){
+                        .mData = decodedData.mBuffers[0].mData,
+                        .mDataByteSize = decodedData.mBuffers[0].mDataByteSize,
+                        .mNumberChannels = _canonicalAsbd.mChannelsPerFrame
+                    }
+                };
+
+                AudioBufferList encodedData;
+                encodedData.mNumberBuffers = 1;
+                encodedData.mBuffers[0].mNumberChannels = _destinationAsbd.mChannelsPerFrame;
+                encodedData.mBuffers[0].mDataByteSize = _encodeBufferSize;
+                encodedData.mBuffers[0].mData = _encodeBuffer;
+
+                while (1)
+                {
+                    ioOutputDataPackets2 = _encodePacketsPerBuffer;
+
+                    encodingStatus = AudioConverterFillComplexBuffer(_encodeConverterRef, AudioConverterCallback, (void*)&encodeConvertInfo, &ioOutputDataPackets2, &encodedData, _encodePacketDescriptions);
+
+                    if (encodingStatus == OS_STATUS_DONE || encodingStatus == 0)
+                    {
+                        //一个buffer 转码成功
+                    }
+                    else
+                    {
+                        [self failureOccurred];
+                        return;
+                    }
+
+                    if (encodingStatus == OS_STATUS_DONE)
+                    {
+                        break;
+                    }
+                }
+                // End encoding
+            }
+        }
+        else
+        {
+            [self failureOccurred];
+            return;
+        }
+
+        if (decodingStatus == OS_STATUS_DONE)
+        {
+            break;
+        }
+    }
+}
+
+文件转码：
+
+使用函数 ExtAudioFileRead
+
+void startConvert(ExtAudioConverterSettings* settings){
+    //Determine the proper buffer size and calculate number of packets per buffer
+    //for CBR and VBR format
+    UInt32 sizePerBuffer = 32*1024;//32KB is a good starting point
+    UInt32 framesPerBuffer = sizePerBuffer/sizeof(SInt16);
+
+    // allocate destination buffer
+    SInt16 *outputBuffer = (SInt16 *)malloc(sizeof(SInt16) * sizePerBuffer);
+
+    while (1) {
+        AudioBufferList outputBufferList;
+        outputBufferList.mNumberBuffers              = 1;
+        outputBufferList.mBuffers[0].mNumberChannels = settings->outputFormat.mChannelsPerFrame;
+        outputBufferList.mBuffers[0].mDataByteSize   = sizePerBuffer;
+        outputBufferList.mBuffers[0].mData           = outputBuffer;
+
+        UInt32 framesCount = framesPerBuffer;
+
+        CheckError(ExtAudioFileRead(settings->inputFile,
+                                    &framesCount,
+                                    &outputBufferList),
+                   "ExtAudioFileRead failed");
+
+        if (framesCount==0) {
+            printf("Done reading from input file\n");
+            return;
+        }
+
+        CheckError(ExtAudioFileWrite(settings->outputFile,
+                                     framesCount,
+                                     &outputBufferList),
+                   "ExtAudioFileWrite failed");
+    }
+}
+
+
+
