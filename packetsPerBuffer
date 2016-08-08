@@ -1,0 +1,237 @@
+
+
+packetsPerBuffer
+
+
+
+
+
+
+CMSampleBuffer Reference
+
+Inherits From
+Not Applicable
+
+Conforms To
+Not Applicable
+
+Import Statement
+
+Objective-C
+
+@import CoreMedia;
+
+Availability
+Not Applicable
+
+This document describes the API you use to create and manipulate the CMSampleBuffer opaque type.
+
+CMSampleBuffers are Core Foundation objects containing zero or more compressed (or uncompressed) samples of a particular media type (audio, video, muxed, etc), that are used to move media sample data through the media system. A CMSampleBuffer can contain:
+
+    A CMBlockBuffer of one or more media samples, or
+
+    A CVImageBuffer, a reference to the format description for the stream of CMSampleBuffers, size and timing information for each of the contained media samples, and both buffer-level and sample-level attachments.
+
+A sample buffer can contain both sample-level and buffer-level attachments. Sample-level attachments are associated with each individual sample (frame) in a buffer and include information such as timestamps and video frame dependencies. You can read and write sample-level attachments using the CMSampleBufferGetSampleAttachmentsArray function. Buffer-level attachments provide information about the buffer as a whole, such as playback speed and actions to be performed upon consuming the buffer. You can read and write buffer-level attachments using the APIs described in CMAttachment Reference and the keys listed under Sample Buffer Attachment Keys.
+
+It is possible for a CMSampleBuffer to describe samples it does not yet contain. For example, some media services may have access to sample size, timing and format information before the data is read. Such services may create CMSampleBuffers with that information and insert them into queues early, and attach (or fill) the CMBlockBuffers of media data later, when the data becomes ready. To this end, CMSampleBuffers have the concept of data-readiness, which can be tested, set, forced to become ready “now" and so on. It is also possible for a CMSampleBuffer to contain nothing but a special buffer-level attachment that describes a media stream event (for example, "discontinuity: drain and reset decoder before processing the next CMSampleBuffer”). Such a special attachment can also be attached to regular CMSampleBuffers (i.e. that contain media sample data), and if so, the event it describes is defined to occur after the samples in that CMSampleBuffer.
+Functions
+Miscellaneous Functions
+
+    CMAudioSampleBufferCreateWithPacketDescriptions
+    CMSampleBufferCallForEachSample
+    CMSampleBufferCopySampleBufferForRange
+    CMSampleBufferCreate
+    CMSampleBufferCreateCopy
+    CMSampleBufferCreateCopyWithNewTiming
+    CMSampleBufferCreateForImageBuffer
+    CMSampleBufferDataIsReady
+    CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer
+    CMSampleBufferGetAudioStreamPacketDescriptions
+    CMSampleBufferGetAudioStreamPacketDescriptionsPtr
+    CMSampleBufferGetDataBuffer
+    CMSampleBufferGetDecodeTimeStamp
+    CMSampleBufferGetDuration
+    CMSampleBufferGetFormatDescription
+    CMSampleBufferGetImageBuffer
+    CMSampleBufferGetNumSamples
+    CMSampleBufferGetOutputDecodeTimeStamp
+    CMSampleBufferGetOutputDuration
+    CMSampleBufferGetOutputPresentationTimeStamp
+    CMSampleBufferGetOutputSampleTimingInfoArray
+    CMSampleBufferGetPresentationTimeStamp
+    CMSampleBufferGetSampleAttachmentsArray
+    CMSampleBufferGetSampleSize
+    CMSampleBufferGetSampleSizeArray
+    CMSampleBufferGetSampleTimingInfo
+    CMSampleBufferGetSampleTimingInfoArray
+    CMSampleBufferGetTotalSampleSize
+    CMSampleBufferGetTypeID
+    CMSampleBufferInvalidate
+    CMSampleBufferIsValid
+    CMSampleBufferMakeDataReady
+    CMSampleBufferSetDataBuffer
+    CMSampleBufferSetDataBufferFromAudioBufferList
+    CMSampleBufferSetDataReady
+    CMSampleBufferSetInvalidateCallback
+    CMSampleBufferSetOutputPresentationTimeStamp
+    CMSampleBufferTrackDataReadiness
+
+Data Types
+Miscellaneous
+
+    CMSampleBuffer
+    CMSampleTimingInfo
+
+Constants
+
+    Sample Buffer Notifications
+    Sample Buffer Notification Parameters
+    Sample Attachment Keys
+    Sample Buffer Attachment Keys
+
+Result Codes
+
+This table lists the result codes defined for CMSampleBuffer APIs.
+
+Result Code
+	
+
+Value
+	
+
+Description
+
+noErr
+	
+
+0
+	
+
+No error.
+
+kCMSampleBufferError_AllocationFailed
+	
+
+-12730
+	
+
+Indicates that an allocation failed.
+
+kCMSampleBufferError_RequiredParameterMissing
+	
+
+-12731
+	
+
+Indicates that NULL or 0 was passed for a required parameter.
+
+kCMSampleBufferError_AlreadyHasDataBuffer
+	
+
+-12732
+	
+
+Indicates that an attempt was made to set a data buffer on a CMSampleBuffer that already has one.
+
+kCMSampleBufferError_BufferNotReady
+	
+
+-12733
+	
+
+Indicates that the buffer could not be made ready.
+
+kCMSampleBufferError_SampleIndexOutOfRange
+	
+
+-12734
+	
+
+Indicates that the sample index was not between 0 and numSamples-1, inclusive.
+
+kCMSampleBufferError_BufferHasNoSampleSizes
+	
+
+-12735
+	
+
+Indicates that there was an attempt to get sample size information when there was none.
+
+kCMSampleBufferError_BufferHasNoSampleTimingInfo
+	
+
+-12736
+	
+
+Indicates that there was an attempt to get sample timing information when there was none.
+
+kCMSampleBufferError_ArrayTooSmall
+	
+
+-12737
+	
+
+Indicates that the output array was not large enough for the array being requested.
+
+kCMSampleBufferError_InvalidEntryCount
+	
+
+-12738
+	
+
+Indicates that the timing info or size array entry count was not 0, 1, or numSamples.
+
+kCMSampleBufferError_CannotSubdivide
+	
+
+-12739
+	
+
+Indicates that the sample buffer does not contain sample sizes.
+
+This can happen when the samples in the buffer are non-contiguous (for example, in non-interleaved audio, where the channel values for a single sample are scattered through the buffer).
+
+kCMSampleBufferError_SampleTimingInfoInvalid
+	
+
+-12740
+	
+
+Indicates that the buffer unexpectedly contains a non-numeric sample timing info.
+
+kCMSampleBufferError_InvalidMediaTypeForOperation
+	
+
+-12741
+	
+
+Indicates that the media type specified by a format description is not valid for the given operation.
+
+kCMSampleBufferError_InvalidSampleData
+	
+
+-12742
+	
+
+Indicates that Buffer contains bad data.
+
+This value is only returned by CMSampleBuffer functions that inspect its sample data.
+
+kCMSampleBufferError_InvalidMediaFormat
+	
+
+-12743
+	
+
+Indicates that the format of the given media does not match the given format description.
+
+For example, a format description paired with a CVImageBuffer that fails CMVideoFormatDescriptionMatchesImageBuffer.
+
+kCMSampleBufferError_Invalidated
+	
+
+-12744
+	
+
+Indicates that the sample buffer was invalidated.
